@@ -1,6 +1,6 @@
 # Remaining Work
 
-- [ ] Implement label filtering via `LABEL_EXCLUDE` env var
-- [ ] Add Dockerfile for container deployment
-- [ ] Expand unit tests to cover org-level fetching and message formatting
-- [ ] Setup GitHub Actions workflow for scheduled runs and CI
+- [x] Implement label filtering via `LABEL_EXCLUDE` env var
+- [x] Add Dockerfile for container deployment
+- [x] Expand unit tests to cover org-level fetching and message formatting
+- [x] Setup GitHub Actions workflow for scheduled runs and CI

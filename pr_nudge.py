@@ -53,10 +53,15 @@ def fetch_prs(
     return prs
 
 
-def filter_stale(prs: Iterable[dict], stale_days: int) -> list[dict]:
+def filter_stale(
+    prs: Iterable[dict], stale_days: int, *, exclude_labels: set[str] | None = None
+) -> list[dict]:
     cutoff = dt.datetime.utcnow() - dt.timedelta(days=stale_days)
     stale: list[dict] = []
+    labels = exclude_labels or set()
     for pr in prs:
+        if labels and any(label["name"] in labels for label in pr.get("labels", [])):
+            continue
         updated = dt.datetime.fromisoformat(pr["updated_at"].replace("Z", "+00:00"))
         if updated < cutoff:
             stale.append(pr)
@@ -84,7 +89,7 @@ def main() -> None:
     session = requests.Session()
     session.token = cfg.github_token  # type: ignore[attr-defined]
     prs = fetch_prs(session, org=cfg.org, repo=cfg.repo)
-    stale = filter_stale(prs, cfg.stale_days)
+    stale = filter_stale(prs, cfg.stale_days, exclude_labels=cfg.label_exclude)
     msg = build_message(stale)
     post_to_slack(msg, cfg.slack_webhook)
 

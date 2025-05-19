@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 
 
@@ -11,6 +11,7 @@ class Config:
     org: str | None = None
     repo: str | None = None
     stale_days: int = 3
+    label_exclude: set[str] = field(default_factory=set)
 
 
 def load_config() -> Config:
@@ -23,4 +24,8 @@ def load_config() -> Config:
     stale_days = int(os.getenv("STALE_DAYS", "3"))
     if stale_days < 1:
         raise ValueError("STALE_DAYS must be >= 1")
-    return Config(token, webhook, org, repo, stale_days)
+    label_raw = os.getenv("LABEL_EXCLUDE", "")
+    label_exclude = {lbl.strip() for lbl in label_raw.split(";") if lbl.strip()}
+    if not label_exclude and label_raw:
+        label_exclude = {lbl.strip() for lbl in label_raw.split(",") if lbl.strip()}
+    return Config(token, webhook, org, repo, stale_days, label_exclude)
