@@ -89,7 +89,7 @@ def post_to_slack(message: str, webhook_url: str) -> None:
 def main() -> None:
     cfg = load_config()
     session = requests.Session()
-    session.token = cfg.github_token  # type: ignore[attr-defined]
+    session.headers['Authorization'] = f"token {cfg.github_token}"
     prs = fetch_prs(session, org=cfg.org, repo=cfg.repo)
     stale = filter_stale(prs, cfg.stale_days, exclude_labels=cfg.label_exclude)
     msg = build_message(stale)
