@@ -56,7 +56,9 @@ def fetch_prs(
 def filter_stale(
     prs: Iterable[dict], stale_days: int, *, exclude_labels: set[str] | None = None
 ) -> list[dict]:
-    cutoff = dt.datetime.utcnow() - dt.timedelta(days=stale_days)
+    cutoff = dt.datetime.utcnow().replace(tzinfo=dt.timezone.utc) - dt.timedelta(
+        days=stale_days
+    )
     stale: list[dict] = []
     labels = exclude_labels or set()
     for pr in prs:
