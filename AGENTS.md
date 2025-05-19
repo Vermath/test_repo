@@ -70,7 +70,14 @@ CI (GitHub Actions) **fails** if either command returns a non‑zero exit code.
 
 1. **Label filtering** – Add `LABEL_EXCLUDE="WIP,experimental"` to skip PRs with these labels.  
 2. **Cron / Scheduler** – Deploy via GitHub Actions (`workflow_dispatch` + `schedule`) or a platform‑cron.  
-3. **Slash‑command** – Wrap `build_message()` in a small Flask app and expose `/stale‑prs`.  
+3. **Slash‑command / Web UI** – The project now includes a basic Flask application (`app.py`) that exposes the stale PRs functionality via a web endpoint.
+    *   **Environment Variables**: The Flask app uses the same environment variables as the `pr_nudge.py` script (see section 3). Ensure these are set in your environment before running the app.
+    *   **Running the app**:
+        ```bash
+        python app.py
+        ```
+    *   This will start a Flask development server (usually on port 5000 by default).
+    *   The stale PRs can then be accessed by making a GET request to the `/stale-prs` endpoint (e.g., `http://localhost:5000/stale-prs`).
 
 ---
 
