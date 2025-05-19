@@ -5,7 +5,7 @@ import datetime as dt
 import responses
 import requests
 
-from pr_nudge import fetch_prs, filter_stale, post_to_slack
+from pr_nudge import fetch_prs, filter_stale, build_message, post_to_slack
 
 
 def make_pr(number: int, updated: dt.datetime) -> dict:
@@ -44,3 +44,42 @@ def test_fetch_prs_repo():
     )
     prs = fetch_prs(session, repo="org/repo")
     assert prs and prs[0]["number"] == 1
+
+
+@responses.activate
+def test_fetch_prs_org():
+    session = requests.Session()
+    session.token = "t"
+    responses.add(
+        responses.GET,
+        "https://api.github.com/orgs/my/repo/repos",
+        json=[{"full_name": "my/repo"}],
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        "https://api.github.com/repos/my/repo/pulls",
+        json=[make_pr(2, dt.datetime.utcnow())],
+        status=200,
+    )
+    prs = fetch_prs(session, org="my/repo")
+    assert prs and prs[0]["number"] == 2
+
+
+def test_build_message():
+    pr = make_pr(3, dt.datetime(2020, 1, 1))
+    msg = build_message([pr])
+    assert "PR 3" in msg and pr["html_url"] in msg
+
+
+def test_label_filtering():
+    now = dt.datetime.utcnow()
+    prs = [
+        {
+            **make_pr(1, now - dt.timedelta(days=5)),
+            "labels": [{"name": "WIP"}],
+        },
+        make_pr(2, now - dt.timedelta(days=5)),
+    ]
+    stale = filter_stale(prs, 3, exclude_labels={"WIP"})
+    assert len(stale) == 1 and stale[0]["number"] == 2
