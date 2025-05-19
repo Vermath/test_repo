@@ -5,3 +5,4 @@ responses
 ruff
 black
 Flask
+freezegun
