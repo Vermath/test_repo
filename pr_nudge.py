@@ -58,30 +58,35 @@ def filter_stale(
     stale_days: int,
     *,
     exclude_labels: set[str] | None = None,
-    snooze_data: dict | None = None
+    snooze_data: dict | None = None,
 ) -> list[dict]:
     now_utc = dt.datetime.utcnow().replace(tzinfo=dt.timezone.utc)
     cutoff = now_utc - dt.timedelta(days=stale_days)
     stale: list[dict] = []
     labels = exclude_labels or set()
-    
+
     active_snooze_data = snooze_data or {}
 
     # Clean up expired snoozes from the provided snooze_data dictionary
     # This modifies the dict in-place if it's passed from app.py
     if active_snooze_data:
-        for pr_url, expiry_iso_str in list(active_snooze_data.items()): # Iterate over a copy for safe deletion
+        for pr_url, expiry_iso_str in list(
+            active_snooze_data.items()
+        ):  # Iterate over a copy for safe deletion
             try:
                 expiry_dt = dt.datetime.fromisoformat(expiry_iso_str)
                 if now_utc > expiry_dt:
                     del active_snooze_data[pr_url]
-                    print(f"Cleaned up expired snooze for PR (in filter_stale): {pr_url}")
+                    print(
+                        f"Cleaned up expired snooze for PR (in filter_stale): {pr_url}"
+                    )
             except ValueError:
                 # Handle cases where the ISO string might be malformed, though unlikely
-                print(f"Warning: Malformed snooze expiry string for {pr_url}: {expiry_iso_str}")
+                print(
+                    f"Warning: Malformed snooze expiry string for {pr_url}: {expiry_iso_str}"
+                )
                 # Optionally, remove the malformed entry
                 del active_snooze_data[pr_url]
-
 
     for pr in prs:
         pr_url = pr.get("html_url")
@@ -95,7 +100,7 @@ def filter_stale(
 
         if labels and any(label["name"] in labels for label in pr.get("labels", [])):
             continue
-        
+
         updated = dt.datetime.fromisoformat(pr["updated_at"].replace("Z", "+00:00"))
         if updated < cutoff:
             stale.append(pr)
@@ -109,23 +114,17 @@ def build_message(stale_prs: Iterable[dict]) -> dict:
             "blocks": [
                 {
                     "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "🎉 No stale PRs today!"
-                    }
+                    "text": {"type": "mrkdwn", "text": "🎉 No stale PRs today!"},
                 }
-            ]
+            ],
         }
 
     blocks = [
         {
             "type": "header",
-            "text": {
-                "type": "plain_text",
-                "text": "Stale Pull Requests"
-            }
+            "text": {"type": "plain_text", "text": "Stale Pull Requests"},
         },
-        {"type": "divider"}
+        {"type": "divider"},
     ]
 
     fallback_text_lines = ["Stale PRs:"]
@@ -134,7 +133,7 @@ def build_message(stale_prs: Iterable[dict]) -> dict:
         title = pr["title"]
         url = pr["html_url"]
         updated_at = pr["updated_at"]
-        
+
         fallback_text_lines.append(f"- {title} ({url}) last updated {updated_at}")
 
         blocks.append(
@@ -142,8 +141,8 @@ def build_message(stale_prs: Iterable[dict]) -> dict:
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"- <{url}|{title}> (last updated {updated_at})"
-                }
+                    "text": f"- <{url}|{title}> (last updated {updated_at})",
+                },
             }
         )
         blocks.append(
@@ -152,54 +151,69 @@ def build_message(stale_prs: Iterable[dict]) -> dict:
                 "elements": [
                     {
                         "type": "button",
-                        "text": {"type": "plain_text", "text": "Snooze 1d", "emoji": True},
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Snooze 1d",
+                            "emoji": True,
+                        },
                         "value": url,
-                        "action_id": "snooze_1d"
+                        "action_id": "snooze_1d",
                     },
                     {
                         "type": "button",
-                        "text": {"type": "plain_text", "text": "Snooze 7d", "emoji": True},
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Snooze 7d",
+                            "emoji": True,
+                        },
                         "value": url,
-                        "action_id": "snooze_7d"
+                        "action_id": "snooze_7d",
                     },
                     {
                         "type": "button",
-                        "text": {"type": "plain_text", "text": "Mark Not Stale", "emoji": True},
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Mark Not Stale",
+                            "emoji": True,
+                        },
                         "value": url,
-                        "action_id": "mark_not_stale"
-                    }
-                ]
+                        "action_id": "mark_not_stale",
+                    },
+                ],
             }
         )
         # Add a divider if it's not the last PR
-        if i < len(list(stale_prs)) - 1: # Need to convert iterable to list to get len
+        if i < len(list(stale_prs)) - 1:  # Need to convert iterable to list to get len
             blocks.append({"type": "divider"})
 
-    return {
-        "text": "\n".join(fallback_text_lines), # Fallback text
-        "blocks": blocks
-    }
+    return {"text": "\n".join(fallback_text_lines), "blocks": blocks}  # Fallback text
 
 
-def post_to_slack(message: dict, webhook_url: str) -> None: # Changed message type hint
-    r = requests.post(webhook_url, json=message) # Send the dict as JSON
+def post_to_slack(message: dict, webhook_url: str) -> None:  # Changed message type hint
+    r = requests.post(webhook_url, json=message)  # Send the dict as JSON
     r.raise_for_status()
 
 
 def main() -> None:
     cfg = load_config()
     session = requests.Session()
-    session.headers['Authorization'] = f"token {cfg.github_token}"
+    session.headers["Authorization"] = f"token {cfg.github_token}"
 
     # Prepare exclude_labels set
-    current_exclude_labels = set(cfg.label_exclude) # Start with user-defined exclude_labels
+    current_exclude_labels = set(
+        cfg.label_exclude
+    )  # Start with user-defined exclude_labels
     if cfg.not_stale_label:
         current_exclude_labels.add(cfg.not_stale_label)
-        print(f"Automatically excluding PRs with label (in pr_nudge.py): {cfg.not_stale_label}")
+        print(
+            f"Automatically excluding PRs with label (in pr_nudge.py): {cfg.not_stale_label}"
+        )
 
     prs = fetch_prs(session, org=cfg.org, repo=cfg.repo)
     # Pass None for snooze_data as the script doesn't manage an interactive snooze store
-    stale = filter_stale(prs, cfg.stale_days, exclude_labels=current_exclude_labels, snooze_data=None)
+    stale = filter_stale(
+        prs, cfg.stale_days, exclude_labels=current_exclude_labels, snooze_data=None
+    )
     msg = build_message(stale)
     post_to_slack(msg, cfg.slack_webhook)
 
